@@ -9,14 +9,20 @@ or in the "license" file accompanying this file. This file is distributed on an 
 '''
 
 import sys
+from dotenv import load_dotenv
+import os
 import irc.bot
 import requests
+
+load_dotenv()
+#can access variable via os.getenv("VARIABLE")
 
 class TwitchBot(irc.bot.SingleServerIRCBot):
     def __init__(self, username, client_id, token, channel):
         self.client_id = client_id
         self.token = token
         self.channel = '#' + channel
+        self.botName = username
 
         # Get the channel id, we will need this for v5 API calls
         url = 'https://api.twitch.tv/kraken/users?login=' + channel
@@ -29,7 +35,7 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         port = 6667
         print 'Connecting to ' + server + ' on port ' + str(port) + '...'
         irc.bot.SingleServerIRCBot.__init__(self, [(server, port, 'oauth:'+token)], username, username)
-        
+
 
     def on_welcome(self, c, e):
         print 'Joining ' + self.channel
@@ -39,6 +45,9 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         c.cap('REQ', ':twitch.tv/tags')
         c.cap('REQ', ':twitch.tv/commands')
         c.join(self.channel)
+
+        #Announce bot in the channel
+        c.privmsg(self.channel, self.botName + ' is in the chat!')
 
     def on_pubmsg(self, c, e):
 
@@ -71,7 +80,7 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             message = "This is an example bot, replace this text with your raffle text."
             c.privmsg(self.channel, message)
         elif cmd == "schedule":
-            message = "This is an example bot, replace this text with your schedule text."            
+            message = "This is an example bot, replace this text with your schedule text."
             c.privmsg(self.channel, message)
 
         # The command was not recognized
@@ -79,14 +88,21 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             c.privmsg(self.channel, "Did not understand command: " + cmd)
 
 def main():
-    if len(sys.argv) != 5:
-        print("Usage: twitchbot <username> <client id> <token> <channel>")
-        sys.exit(1)
 
-    username  = sys.argv[1]
-    client_id = sys.argv[2]
-    token     = sys.argv[3]
-    channel   = sys.argv[4]
+    if os.path.exists('./.env'):
+        username  = os.getenv('USERNAME')
+        client_id = os.getenv('CLIENT_ID')
+        token     = os.getenv('TOKEN')
+        channel   = os.getenv('CHANNEL')
+    else:
+        if len(sys.argv) != 5:
+            print("Usage: twitchbot <username> <client id> <token> <channel>")
+            sys.exit(1)
+
+        username  = sys.argv[1]
+        client_id = sys.argv[2]
+        token     = sys.argv[3]
+        channel   = sys.argv[4]
 
     bot = TwitchBot(username, client_id, token, channel)
     bot.start()
