@@ -24,11 +24,29 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         self.channel = '#' + channel
         self.botName = username
 
-        # Get the channel id, we will need this for v5 API calls
-        url = 'https://api.twitch.tv/kraken/users?login=' + channel
-        headers = {'Client-ID': client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
+
+        # Validate app TOKEN
+        url = 'https://id.twitch.tv/oauth2/validate'
+        headers = {
+        'client-id': self.client_id,
+        'Authorization': 'OAuth ' + self.token
+        }
         r = requests.get(url, headers=headers).json()
-        self.channel_id = r['users'][0]['_id']
+        #print r['client_id']
+        self.currClient_ID = r['client_id']
+        # Get the channel id, we will need this for API calls
+        url = 'https://api.twitch.tv/helix/users?login=' + channel
+        #headers = {'Client-ID': client_id}
+        headers = {'client-id': self.currClient_ID, 'Authorization': 'Bearer ' + self.token}
+        r = requests.get(url, headers=headers).json()
+        print r['data'][0]['id']
+        self.channel_id = r['data'][0]['id']
+
+        # Get the channel id, we will need this for v5 API calls
+        # url = 'https://api.twitch.tv/kraken/users?login=' + channel
+        # headers = {'Client-ID': client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
+        # r = requests.get(url, headers=headers).json()
+        # self.channel_id = r['users'][0]['_id']
 
         # Create IRC bot connection
         server = 'irc.chat.twitch.tv'
@@ -63,17 +81,20 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
 
         # Poll the API to get current game.
         if cmd == "game":
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
-            c.privmsg(self.channel, r['display_name'] + ' is currently playing ' + r['game'])
+            url = 'https://api.twitch.tv/helix/channels'
+            headers = {'client-id': self.currClient_ID, 'Authorization': 'Bearer ' + self.token}
+            params = {'broadcaster_id': self.channel_id}
+            r = requests.get(url, headers=headers, params=params).json()['data'][0]
+            c.privmsg(self.channel, r['broadcaster_name'] + ' is currently playing ' + r['game_name'])
+
 
         # Poll the API the get the current status of the stream
         elif cmd == "title":
-            url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
-            headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
-            r = requests.get(url, headers=headers).json()
-            c.privmsg(self.channel, r['display_name'] + ' channel title is currently ' + r['status'])
+            url = 'https://api.twitch.tv/helix/channels'
+            headers = {'client-id': self.currClient_ID, 'Authorization': 'Bearer ' + self.token}
+            params = {'broadcaster_id': self.channel_id}
+            r = requests.get(url, headers=headers, params=params).json()['data'][0]
+            c.privmsg(self.channel, r['broadcaster_name'] + ' channel title is currently ' + r['title'])
 
         # Provide basic information to viewers for specific commands
         elif cmd == "raffle":
