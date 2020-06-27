@@ -118,42 +118,39 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             for x in e.tags:
                 if x['key'] == 'display-name':
                     sender = x['value']
+                    break
 
-
-            if self.is_Mod(e):
-                if len(e.arguments[0]) == 3:
-                    message = '@' + sender + ' command requires an argument'
-                else:
-
-                    # target of cmd
-                    target = e.arguments[0].split(' ')[1]
-
-                    # get target channel info
-                    url = 'https://api.twitch.tv/helix/users?login=' + target
-                    headers = {'client-id': self.currClient_ID, 'Authorization': 'Bearer ' + self.token}
-                    r = requests.get(url, headers=headers).json()
-
-                    # if target doesn't exist then request returns {'data': []}
-                    if len(r['data']) == 0:
-                        message = '@' + sender + ' -> check username spelling'
-                        c.privmsg(self.channel, message)
-                        return
-
-                    targetName = r['data'][0]['display_name']
-                    targetLogin = r['data'][0]['login']
-                    targetID = r['data'][0]['id']
-
-                    url = 'https://api.twitch.tv/helix/channels'
-                    params = {'broadcaster_id': targetID}
-                    r = requests.get(url, headers=headers, params=params).json()
-                    targetGame = r['data'][0]['game_name']
-
-                    message = 'You should go checkout ' + targetName + ' at ' + \
-                    'https://www.twitch.tv/' + targetLogin + \
-                    ' They were last playing ' + targetGame + '!'
-
-            else:
+            if not self.is_Mod(e):
                 message = '@' + sender + ' -> sorry, this command is only for moderators'
+            elif len(e.arguments[0]) == 3:
+                message = '@' + sender + ' command requires an argument'
+            else:
+                # target of cmd
+                target = e.arguments[0].split(' ')[1]
+
+                # get target channel info
+                url = 'https://api.twitch.tv/helix/users?login=' + target
+                headers = {'client-id': self.currClient_ID, 'Authorization': 'Bearer ' + self.token}
+                r = requests.get(url, headers=headers).json()
+
+                # if target doesn't exist then request returns {'data': []}
+                if len(r['data']) == 0:
+                    message = '@' + sender + ' -> check username spelling'
+                    c.privmsg(self.channel, message)
+                    return
+
+                targetName = r['data'][0]['display_name']
+                targetLogin = r['data'][0]['login']
+                targetID = r['data'][0]['id']
+
+                url = 'https://api.twitch.tv/helix/channels'
+                params = {'broadcaster_id': targetID}
+                r = requests.get(url, headers=headers, params=params).json()
+                targetGame = r['data'][0]['game_name']
+
+                message = 'You should go checkout ' + targetName + ' at ' + \
+                'https://www.twitch.tv/' + targetLogin + \
+                ' They were last playing ' + targetGame + '!'
 
             c.privmsg(self.channel, message)
 
