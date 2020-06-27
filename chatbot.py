@@ -76,6 +76,16 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             self.do_command(e, cmd)
         return
 
+    def is_Mod(self, e):
+        for x in e.tags:
+            if x['key'] == 'user-id' and x['value'] == self.channel_id:
+                print 'found broadcaster'
+                return True
+            elif x['key'] == 'mod' and x['value'] == '1':
+                print 'found moderator'
+                return True
+        return False
+
     def do_command(self, e, cmd):
         c = self.connection
 
@@ -86,7 +96,6 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             params = {'broadcaster_id': self.channel_id}
             r = requests.get(url, headers=headers, params=params).json()['data'][0]
             c.privmsg(self.channel, r['broadcaster_name'] + ' is currently playing ' + r['game_name'])
-
 
         # Poll the API the get the current status of the stream
         elif cmd == "title":
@@ -102,6 +111,50 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             c.privmsg(self.channel, message)
         elif cmd == "schedule":
             message = "This is an example bot, replace this text with your schedule text."
+            c.privmsg(self.channel, message)
+
+        elif cmd=="so":
+            # sender of cmd
+            for x in e.tags:
+                if x['key'] == 'display-name':
+                    sender = x['value']
+
+
+            if self.is_Mod(e):
+                if len(e.arguments[0]) == 3:
+                    message = '@' + sender + ' command requires an argument'
+                else:
+
+                    # target of cmd
+                    target = e.arguments[0].split(' ')[1]
+
+                    # get target channel info
+                    url = 'https://api.twitch.tv/helix/users?login=' + target
+                    headers = {'client-id': self.currClient_ID, 'Authorization': 'Bearer ' + self.token}
+                    r = requests.get(url, headers=headers).json()
+
+                    # if target doesn't exist then request returns {'data': []}
+                    if len(r['data']) == 0:
+                        message = '@' + sender + ' -> check username spelling'
+                        c.privmsg(self.channel, message)
+                        return
+
+                    targetName = r['data'][0]['display_name']
+                    targetLogin = r['data'][0]['login']
+                    targetID = r['data'][0]['id']
+
+                    url = 'https://api.twitch.tv/helix/channels'
+                    params = {'broadcaster_id': targetID}
+                    r = requests.get(url, headers=headers, params=params).json()
+                    targetGame = r['data'][0]['game_name']
+
+                    message = 'You should go checkout ' + targetName + ' at ' + \
+                    'https://www.twitch.tv/' + targetLogin + \
+                    ' They were last playing ' + targetGame + '!'
+
+            else:
+                message = '@' + sender + ' -> sorry, this command is only for moderators'
+
             c.privmsg(self.channel, message)
 
         # The command was not recognized
